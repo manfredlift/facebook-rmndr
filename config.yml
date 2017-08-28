@@ -3,6 +3,12 @@ verifyToken: ${RMNDR_VERIFY_TOKEN}
 pageAccessToken: ${RMNDR_ACCESS_TOKEN}
 appSecret: ${RMNDR_APP_SECRET}
 
+server:
+    type: default
+    applicationConnectors:
+        -   type: http
+            port: ${PORT:-8080}
+
 logging:
   level: INFO
   loggers:
