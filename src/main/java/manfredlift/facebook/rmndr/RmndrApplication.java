@@ -2,6 +2,9 @@ package manfredlift.facebook.rmndr;
 
 import io.dropwizard.Application;
 import io.dropwizard.client.JerseyClientBuilder;
+import io.dropwizard.configuration.EnvironmentVariableSubstitutor;
+import io.dropwizard.configuration.SubstitutingSourceProvider;
+import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
 import manfredlift.facebook.rmndr.client.FbClient;
@@ -31,5 +34,16 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
         scheduler.start();
 
         environment.jersey().register(new WebhookResource(configuration, fbClient, scheduler));
+    }
+
+
+    @Override
+    public void initialize(Bootstrap<RmndrConfiguration> bootstrap) {
+        // Enable variable substitution with environment variables
+        bootstrap.setConfigurationSourceProvider(
+            new SubstitutingSourceProvider(bootstrap.getConfigurationSourceProvider(),
+                new EnvironmentVariableSubstitutor(false)
+            )
+        );
     }
 }

@@ -1,6 +1,7 @@
-verifyToken: <verify_token>
-pageAccessToken: <page_access_token>
-appSecret: <app_secret>
+# read secret tokens from environment variables
+verifyToken: ${RMNDR_VERIFY_TOKEN}
+pageAccessToken: ${RMNDR_ACCESS_TOKEN}
+appSecret: ${RMNDR_APP_SECRET}
 
 logging:
   level: INFO
