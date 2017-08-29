@@ -8,6 +8,7 @@ import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
 import manfredlift.facebook.rmndr.client.FbClient;
+import manfredlift.facebook.rmndr.resources.HealthCheckResource;
 import manfredlift.facebook.rmndr.resources.WebhookResource;
 import org.quartz.Scheduler;
 import org.quartz.impl.StdSchedulerFactory;
@@ -33,6 +34,7 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
         scheduler.getContext().put(RmndrConstants.ACCESS_TOKEN, configuration.getPageAccessToken());
         scheduler.start();
 
+        environment.jersey().register(new HealthCheckResource());
         environment.jersey().register(new WebhookResource(configuration, fbClient, scheduler));
     }
 
