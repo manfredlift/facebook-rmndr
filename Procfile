@@ -1,1 +1,1 @@
-web: java -jar target/facebook-rmndr-1.0-SNAPSHOT.jar server config.yml
+web: java -jar target/facebook-rmndr.jar server config.yml
