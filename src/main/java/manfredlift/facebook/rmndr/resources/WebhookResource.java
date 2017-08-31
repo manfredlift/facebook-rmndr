@@ -3,8 +3,8 @@ package manfredlift.facebook.rmndr.resources;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import manfredlift.facebook.rmndr.RmndrConfiguration;
 import manfredlift.facebook.rmndr.ReminderJob;
+import manfredlift.facebook.rmndr.RmndrConfiguration;
 import manfredlift.facebook.rmndr.RmndrConstants;
 import manfredlift.facebook.rmndr.RmndrMessageConstants;
 import manfredlift.facebook.rmndr.api.*;
@@ -20,8 +20,8 @@ import javax.ws.rs.core.Response;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
+import static manfredlift.facebook.rmndr.RmndrConstants.*;
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.TriggerBuilder.newTrigger;
 
@@ -64,66 +64,85 @@ public class WebhookResource {
 
 
     private void processCallbackAsync(Callback callback) {
-        CompletableFuture.runAsync(() -> {
-            callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessage));
-        });
+        callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging));
     }
 
 
-    private void processMessage(Messaging messaging) {
-        Optional.ofNullable(messaging)
-            .map(Messaging::getMessage)
-            .map(message -> {
-                if (message.getQuickReply() != null) {
-                    log.debug("Quick reply received");
-                    processQuickReply(messaging.getSender(), message.getQuickReply());
-                    return message;
-                } else {
-                    return Optional.ofNullable(message.getNlp())
-                        .map(Nlp::getEntities)
-                        .map(entities -> {
-                            log.info("Message with NLP received");
-                            processNlpMessage(messaging.getSender(), entities, message.getText());
-                            return message;
-                        })
-                        .orElse(null);
-                }
-            })
-            .orElseGet(() -> {
-                log.error("One of the required fields is null in incoming message: {}", messaging.toString());
-                fbClient.sendErrorMessage(messaging.getSender().getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
-                 return null;
-            });
+    private void processMessaging(Messaging messaging) {
+        Message message = messaging.getMessage();
+        
+        if (message == null) {
+            log.error("Unexpected: Message is null in Messaging: {}", messaging.toString());
+            return;
+        }
+
+        if (message.getQuickReply() != null) {
+            log.info("Quick reply received: '{}'", message.getQuickReply().getPayload());
+            processQuickReply(messaging.getSender(), message.getQuickReply());
+        } else {
+            processMessage(messaging.getSender(), message);
+        }
+    }
+
+    private void processMessage(User user, Message message) {
+        String text = message.getText();
+
+        if (text == null) {
+            log.error("Unexpected: Text is null in Message: {}", message.toString());
+            return;
+        }
+
+        if (text.startsWith(REMINDER_COMMAND)) {
+            if (text.indexOf(';') > 0 && text.indexOf(';') < text.length() - 1) {
+                String reminderText = text.substring(text.indexOf(';') + 1).trim();
+
+                Optional.ofNullable(message.getNlp())
+                    .map(Nlp::getEntities)
+                    .map(entitiesList -> {
+                        handleReminderCommand(user, entitiesList, reminderText);
+                        return entitiesList;
+                    }).orElseGet(() -> {
+                        fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
+                        return null;
+                });
+                return;
+            }
+        } else if (text.startsWith(LIST_COMMAND)) {
+            return;
+        } else if (text.startsWith(CANCEL_COMMAND)) {
+            return;
+        } else if (text.startsWith(CLEAR_COMMAND)) {
+            return;
+        }
+
+        fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
     }
 
 
-    private void processNlpMessage(User user, Map<String, List<NlpEntity>> entities, String text) {
-        List<NlpEntity> reminderEntityList = entities.get("reminder");
+    private void handleReminderCommand(User user, Map<String, List<NlpEntity>> entities, String reminderText) {
         List<NlpEntity> datetimeEntityList = entities.get("datetime");
 
-        if (reminderEntityList == null || datetimeEntityList == null || text == null || !text.startsWith("!reminder")) {
-            log.info("Date or reminder entities not present in NLP map");
+        if (datetimeEntityList == null) {
+            log.info("Datetime entity not present in NLP map");
             fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
             return;
         }
 
-        NlpEntity reminderEntity = reminderEntityList.stream().findFirst().orElse(null);
         NlpEntity dateTimeEntity = datetimeEntityList.stream().findFirst().orElse(null);
 
-        if (reminderEntity != null && dateTimeEntity != null) {
-            createConfirmationQuickReply(user, reminderEntity, dateTimeEntity);
+        if (dateTimeEntity != null) {
+            createConfirmationQuickReply(user, dateTimeEntity, reminderText);
         } else {
-            log.warn("Date or reminder fields empty in NLP entity list");
             fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
         }
     }
 
-    private void createConfirmationQuickReply(User user, NlpEntity reminderEntity, NlpEntity dateTimeEntity) {
+    private void createConfirmationQuickReply(User user, NlpEntity dateTimeEntity, String reminderText) {
         String confirmationText = String.format(RmndrMessageConstants.USER_CONFIRMATION,
-            reminderEntity.getValue(), dateTimeEntity.getValue());
+            reminderText, dateTimeEntity.getValue());
 
         ReminderPayload reminderPayload = new ReminderPayload();
-        reminderPayload.setText(reminderEntity.getValue());
+        reminderPayload.setText(reminderText);
         reminderPayload.setDate(dateTimeEntity.getValue());
         String payload = gson.toJson(reminderPayload);
 
