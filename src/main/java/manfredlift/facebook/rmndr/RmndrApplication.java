@@ -8,12 +8,14 @@ import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
 import manfredlift.facebook.rmndr.client.FbClient;
+import manfredlift.facebook.rmndr.properties.QuartzPropertiesFactory;
 import manfredlift.facebook.rmndr.resources.HealthCheckResource;
 import manfredlift.facebook.rmndr.resources.WebhookResource;
 import org.quartz.Scheduler;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.ws.rs.client.Client;
+import java.util.Properties;
 
 @Slf4j
 public class RmndrApplication extends Application<RmndrConfiguration> {
@@ -29,7 +31,10 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
 
         final FbClient fbClient = new FbClient(configuration, client);
 
-        final Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+        final Properties quartzProperties = QuartzPropertiesFactory.create();
+        final StdSchedulerFactory schedulerFactory = new StdSchedulerFactory(quartzProperties);
+        final Scheduler scheduler = schedulerFactory.getScheduler();
+
         scheduler.getContext().put(RmndrConstants.FB_CLIENT, fbClient);
         scheduler.getContext().put(RmndrConstants.ACCESS_TOKEN, configuration.getPageAccessToken());
         scheduler.start();
@@ -41,7 +46,7 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
 
     @Override
     public void initialize(Bootstrap<RmndrConfiguration> bootstrap) {
-        // Enable variable substitution with environment variables
+        // Enable variable substitution with environment variables in config file
         bootstrap.setConfigurationSourceProvider(
             new SubstitutingSourceProvider(bootstrap.getConfigurationSourceProvider(),
                 new EnvironmentVariableSubstitutor(false)
