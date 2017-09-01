@@ -11,7 +11,6 @@ import org.glassfish.jersey.uri.UriComponent;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.HttpHeaders;
-import java.net.URLEncoder;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -33,8 +32,9 @@ public class WitClient {
             .queryParam("context", UriComponent.encode(gson.toJson(referenceTime), UriComponent.Type.QUERY_PARAM));
 
         return CompletableFuture.supplyAsync(() -> {
+            log.info("Sending request to Wit AI: '{}:{}'", query, referenceTime);
             WitResponse response = target.request().header(HttpHeaders.AUTHORIZATION, witToken).get(WitResponse.class);
-            log.info("Message sent to Wit AI: '{}:{}'", query, referenceTime);
+            log.info("Response received from Wit AI");
             return response;
         });
     }

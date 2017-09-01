@@ -10,7 +10,11 @@ import java.util.Map;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WitResponse {
-    private String msg_id;
-    private String _text;
+    @JsonProperty("msg_id")
+    private String msgId;
+
+    @JsonProperty("_text")
+    private String text;
+
     private Map<String, List<NlpEntity>> entities;
 }

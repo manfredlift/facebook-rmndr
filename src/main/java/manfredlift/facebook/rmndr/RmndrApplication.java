@@ -42,7 +42,7 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
         scheduler.start();
 
         environment.jersey().register(new HealthCheckResource());
-        environment.jersey().register(new WebhookResource(configuration, fbClient, scheduler));
+        environment.jersey().register(new WebhookResource(configuration, fbClient, witClient, scheduler));
     }
 
 

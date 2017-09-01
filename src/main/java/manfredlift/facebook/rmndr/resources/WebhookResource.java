@@ -9,6 +9,8 @@ import manfredlift.facebook.rmndr.RmndrConstants;
 import manfredlift.facebook.rmndr.RmndrMessageConstants;
 import manfredlift.facebook.rmndr.api.*;
 import manfredlift.facebook.rmndr.client.FbClient;
+import manfredlift.facebook.rmndr.client.WitClient;
+import manfredlift.facebook.rmndr.util.DateHelper;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
 
@@ -17,6 +19,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static manfredlift.facebook.rmndr.RmndrConstants.*;
@@ -29,12 +33,14 @@ import static org.quartz.TriggerBuilder.newTrigger;
 public class WebhookResource {
     private final RmndrConfiguration config;
     private final FbClient fbClient;
+    private final WitClient witClient;
     private final Scheduler scheduler;
     private final Gson gson;
 
-    public WebhookResource(RmndrConfiguration config, FbClient fbClient, Scheduler scheduler) {
+    public WebhookResource(RmndrConfiguration config, FbClient fbClient, WitClient witClient, Scheduler scheduler) {
         this.config = config;
         this.fbClient = fbClient;
+        this.witClient = witClient;
         this.scheduler = scheduler;
         this.gson = new Gson();
     }
@@ -72,11 +78,11 @@ public class WebhookResource {
             log.info("Quick reply received: '{}'", message.getQuickReply().getPayload());
             processQuickReply(messaging.getSender(), message.getQuickReply());
         } else {
-            processMessage(messaging.getSender(), message);
+            processMessage(messaging.getSender(), message, messaging.getTimestamp());
         }
     }
 
-    private void processMessage(User user, Message message) {
+    private void processMessage(User user, Message message, long timestamp) {
         String text = message.getText();
 
         if (text == null) {
@@ -86,17 +92,7 @@ public class WebhookResource {
 
         if (text.startsWith(REMINDER_COMMAND)) {
             if (text.indexOf(';') > 0 && text.indexOf(';') < text.length() - 1) {
-                String reminderText = text.substring(text.indexOf(';') + 1).trim();
-
-                Optional.ofNullable(message.getNlp())
-                    .map(Nlp::getEntities)
-                    .map(entitiesList -> {
-                        handleReminderCommand(user, entitiesList, reminderText);
-                        return entitiesList;
-                    }).orElseGet(() -> {
-                        fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
-                        return null;
-                });
+                handleReminderCommand(user, text, timestamp);
                 return;
             }
         } else if (text.startsWith(LIST_COMMAND)) {
@@ -111,27 +107,59 @@ public class WebhookResource {
     }
 
 
-    private void handleReminderCommand(User user, Map<String, List<NlpEntity>> entities, String reminderText) {
-        List<NlpEntity> datetimeEntityList = entities.get("datetime");
+    private void handleReminderCommand(User user, String text, long timestamp) {
+        String dateText = text.substring(RmndrConstants.REMINDER_COMMAND.length(), text.indexOf(';')).trim();
+        String reminderText = text.substring(text.indexOf(';') + 1).trim();
 
-        if (datetimeEntityList == null) {
-            log.info("Datetime entity not present in NLP map");
-            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
-            return;
-        }
+        fbClient.getUserTimezoneFuture(user.getId())
+            .exceptionally(th -> {
+                log.error("Error when getting timezone from Facebook. Error: {}:{}", th.getClass().getCanonicalName(),
+                    th.getClass().getCanonicalName(), th.getMessage());
+                fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
+                return null;
+            })
+            .thenCompose(userTimezone -> {
+                String formattedDateString = DateHelper.millisToFormattedDate(timestamp, userTimezone.getTimezone());
+                ReferenceTime referenceTime = new ReferenceTime(formattedDateString);
+                return witClient.getResponseFuture(dateText, referenceTime);
+            })
+            .exceptionally(th -> {
+                log.error("Error when querying wit.ai. Error: {}:{}", th.getClass().getCanonicalName(),
+                    th.getClass().getCanonicalName(), th.getMessage());
+                fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
+                return null;
+            })
+            .thenAccept(witResponse -> {
+                if (witResponse.getEntities() == null) {
+                    log.info("Entity object not present in Wit response. Response: {}", witResponse);
+                    fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_DATE);
+                }
 
-        NlpEntity dateTimeEntity = datetimeEntityList.stream().findFirst().orElse(null);
+                List<NlpEntity> datetimeEntityList = witResponse.getEntities().get("datetime");
 
-        if (dateTimeEntity != null) {
-            createConfirmationQuickReply(user, dateTimeEntity, reminderText);
-        } else {
-            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
-        }
+                if (datetimeEntityList == null) {
+                    log.info("Datetime entity not present in NLP map. Response: {}", witResponse);
+                    fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_DATE);
+                    return;
+                }
+
+                NlpEntity dateTimeEntity = datetimeEntityList.stream().findFirst().orElse(null);
+
+                if (dateTimeEntity != null) {
+                    createConfirmationQuickReply(user, dateTimeEntity, reminderText);
+                } else {
+                    log.info("Datetime entity not present datetime entity list. Response: {}", witResponse);
+                    fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_DATE);
+                }
+            });
     }
 
     private void createConfirmationQuickReply(User user, NlpEntity dateTimeEntity, String reminderText) {
+        ZonedDateTime zonedDate = ZonedDateTime.parse(dateTimeEntity.getValue());
+        String humanDateString = zonedDate.format(DateTimeFormatter.ofPattern(RmndrConstants.HUMAN_DATE_FORMAT));
+
         String confirmationText = String.format(RmndrMessageConstants.USER_CONFIRMATION,
-            reminderText, dateTimeEntity.getValue());
+            reminderText, humanDateString);
 
         ReminderPayload reminderPayload = new ReminderPayload();
         reminderPayload.setText(reminderText);
