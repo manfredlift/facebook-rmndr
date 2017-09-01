@@ -12,6 +12,8 @@ public class RmndrConfiguration extends Configuration {
 
     private String appSecret;
 
+    private String witToken;
+
     private JerseyClientConfiguration jerseyClient;
 
     public JerseyClientConfiguration getJerseyClientConfiguration() {

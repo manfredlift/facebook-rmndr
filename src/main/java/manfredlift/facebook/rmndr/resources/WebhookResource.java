@@ -9,10 +9,8 @@ import manfredlift.facebook.rmndr.RmndrConstants;
 import manfredlift.facebook.rmndr.RmndrMessageConstants;
 import manfredlift.facebook.rmndr.api.*;
 import manfredlift.facebook.rmndr.client.FbClient;
-import org.quartz.JobDetail;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
-import org.quartz.Trigger;
+import org.quartz.*;
+import org.quartz.impl.matchers.GroupMatcher;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -58,15 +56,9 @@ public class WebhookResource {
 
     @POST
     public Response handleCallback(Callback callback) {
-        processCallbackAsync(callback);
+        callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging));
         return Response.ok().build();
     }
-
-
-    private void processCallbackAsync(Callback callback) {
-        callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging));
-    }
-
 
     private void processMessaging(Messaging messaging) {
         Message message = messaging.getMessage();
@@ -203,8 +195,34 @@ public class WebhookResource {
             fbClient.sendTextMessage(userId, RmndrMessageConstants.TIMER_SCHEDULED_SUCCESSFULLY);
             log.info("Reminder scheduled");
         } catch (SchedulerException e) {
-            log.error("Error when scheduling a job: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
+            log.error("Error when scheduling a job. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
             fbClient.sendErrorMessage(userId, RmndrMessageConstants.SCHEDULING_ERROR);
+        }
+    }
+
+    private void listReminders(String userId) {
+        try {
+            Set<JobKey> jobKeys = scheduler.getJobKeys(GroupMatcher.jobGroupEquals(userId));
+            List<String> jobIds = new ArrayList<>();
+
+            jobKeys.forEach((jobKey) -> {
+                jobIds.add(jobKey.getName());
+                try {
+                    JobDetail jobDetail = scheduler.getJobDetail(jobKey);
+                    JobDataMap jobDataMap = jobDetail.getJobDataMap();
+                    jobDataMap.getString(""); // reminder text
+                    jobDataMap.getString(""); // reminder date
+                } catch (SchedulerException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            for (JobKey jobKey : jobKeys) {
+                jobIds.add(jobKey.getName());
+            }
+
+        } catch (SchedulerException | RuntimeException e) {
+            log.error("Error when listing jobs. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
+            fbClient.sendErrorMessage(userId, RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
         }
     }
 }

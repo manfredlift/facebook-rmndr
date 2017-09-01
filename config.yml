@@ -2,6 +2,7 @@
 verifyToken: ${RMNDR_VERIFY_TOKEN}
 pageAccessToken: ${RMNDR_ACCESS_TOKEN}
 appSecret: ${RMNDR_APP_SECRET}
+witToken: ${RMNDR_WIT_TOKEN}
 
 server:
     type: default
