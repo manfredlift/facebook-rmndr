@@ -17,8 +17,6 @@ import org.quartz.impl.matchers.GroupMatcher;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -119,9 +117,8 @@ public class WebhookResource {
                 return null;
             })
             .thenCompose(userTimezone -> {
-                String formattedDateString = DateHelper.millisToFormattedDate(timestamp, userTimezone.getTimezone());
-                ReferenceTime referenceTime = new ReferenceTime(formattedDateString);
-                return witClient.getResponseFuture(dateText, referenceTime);
+                ReferenceTime refTime = DateHelper.referenceTimeFromMillis(timestamp, userTimezone.getOffsetHours());
+                return witClient.getResponseFuture(dateText, refTime);
             })
             .exceptionally(th -> {
                 log.error("Error when querying wit.ai. Error: {}:{}", th.getClass().getCanonicalName(),
@@ -188,14 +185,7 @@ public class WebhookResource {
         String payload = quickReply.getPayload();
         ReminderPayload reminderPayload = gson.fromJson(payload, ReminderPayload.class);
 
-        Date date;
-        try {
-            date = new SimpleDateFormat(RmndrConstants.DATE_FORMAT).parse(reminderPayload.getDate());
-        } catch (ParseException e) {
-            log.warn("Error when parsing the date: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
-            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_DATE);
-            return;
-        }
+        Date date = Date.from(ZonedDateTime.parse(reminderPayload.getDate()).toInstant());
 
         if (date.before(new Date())) {
             log.info("Tried to set a reminder in the past");

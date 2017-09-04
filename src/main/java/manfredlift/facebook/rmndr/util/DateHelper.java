@@ -1,16 +1,20 @@
 package manfredlift.facebook.rmndr.util;
 
 import manfredlift.facebook.rmndr.RmndrConstants;
+import manfredlift.facebook.rmndr.api.ReferenceTime;
 
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class DateHelper {
-    public static String millisToFormattedDate(long millis, int offsetHours) {
-        String timezoneId = offsetHours >= 0 ? "GMT+" + offsetHours : "GMT" + offsetHours;
-        SimpleDateFormat dateFormat = new SimpleDateFormat(RmndrConstants.DATE_FORMAT);
-        dateFormat.setTimeZone(TimeZone.getTimeZone(timezoneId));
+    public static ReferenceTime referenceTimeFromMillis(long millis, int offsetHours) {
+        ZoneId zoneId = ZoneId.ofOffset("GMT", ZoneOffset.ofHours(offsetHours));
+        ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), zoneId);
+        String formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern(RmndrConstants.DATE_FORMAT));
 
-        return dateFormat.format(millis);
+        return new ReferenceTime(formattedDate);
     }
 }
