@@ -94,6 +94,7 @@ public class WebhookResource {
                 return;
             }
         } else if (text.startsWith(LIST_COMMAND)) {
+            handleListCommand(user.getId());
             return;
         } else if (text.startsWith(CANCEL_COMMAND)) {
             return;
@@ -193,14 +194,15 @@ public class WebhookResource {
             return;
         }
 
-        scheduleReminder(user.getId(), reminderPayload.getText(), date);
+        scheduleReminder(user.getId(), reminderPayload.getText(), reminderPayload.getDate(), date);
     }
 
-    private void scheduleReminder(String userId, String text, Date date) {
+    private void scheduleReminder(String userId, String text, String dateString, Date date) {
         JobDetail job = newJob(ReminderJob.class)
             .withIdentity(UUID.randomUUID().toString(), userId)
             .usingJobData("recipient", userId)
             .usingJobData("text", text)
+            .usingJobData("date", dateString)
             .build();
 
         Trigger trigger = newTrigger()
@@ -218,27 +220,29 @@ public class WebhookResource {
         }
     }
 
-    private void listReminders(String userId) {
+    private void handleListCommand(String userId) {
         try {
             Set<JobKey> jobKeys = scheduler.getJobKeys(GroupMatcher.jobGroupEquals(userId));
-            List<String> jobIds = new ArrayList<>();
-
-            jobKeys.forEach((jobKey) -> {
-                jobIds.add(jobKey.getName());
-                try {
-                    JobDetail jobDetail = scheduler.getJobDetail(jobKey);
-                    JobDataMap jobDataMap = jobDetail.getJobDataMap();
-                    jobDataMap.getString(""); // reminder text
-                    jobDataMap.getString(""); // reminder date
-                } catch (SchedulerException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            for (JobKey jobKey : jobKeys) {
-                jobIds.add(jobKey.getName());
+            if (jobKeys.size() == 0) {
+                fbClient.sendTextMessage(userId, RmndrMessageConstants.NO_REMINDERS_SCHEDULED);
+                return;
             }
 
-        } catch (SchedulerException | RuntimeException e) {
+            StringBuilder stringBuilder = new StringBuilder(String.format(LIST_ROW_FORMAT, "id", "text", "date"));
+
+            for (JobKey jobKey : jobKeys) {
+                JobDataMap jobDataMap = scheduler.getJobDetail(jobKey).getJobDataMap();
+
+                String id = jobKey.getName();
+                String text = jobDataMap.getString("text");
+                String date = jobDataMap.getString("date");
+
+                stringBuilder.append("\n");
+                stringBuilder.append(String.format(LIST_ROW_FORMAT, id, text, date));
+            }
+
+            fbClient.sendTextMessage(userId, stringBuilder.toString());
+        } catch (SchedulerException e) {
             log.error("Error when listing jobs. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
             fbClient.sendErrorMessage(userId, RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
         }

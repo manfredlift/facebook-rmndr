@@ -10,4 +10,5 @@ public class RmndrMessageConstants {
     public static final String UNEXPECTED_ERROR_PLEASE_TRY_AGAIN = "Unexpected error. Please try again.";
     public static final String TIMER_SCHEDULED_SUCCESSFULLY = "Reminder scheduled successfully.";
     public static final String USER_CONFIRMATION = "Set reminder '%s' for '%s'?";
+    public static final String NO_REMINDERS_SCHEDULED = "No reminders scheduled.";
 }
