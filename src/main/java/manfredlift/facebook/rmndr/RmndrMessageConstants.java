@@ -1,10 +1,7 @@
 package manfredlift.facebook.rmndr;
 
 public class RmndrMessageConstants {
-    public static final String UNPARSABLE_MESSAGE = "Could not parse the message. " +
-        "To set a reminder please format your message like: '!reminder <date and time>; <reminder text>'.\n" +
-        "E.g '!reminder tomorrow at 4pm; do laundry'";
-    public static final String REMINDER_HELP = "To schedule a reminder:\n '!reminder <reminder time>; <reminder text>'";
+    public static final String REMINDER_HELP = "To schedule a reminder:\n'!reminder <reminder time>; <reminder text>'";
     public static final String UNPARSABLE_DATE = "Could not parse the date. Please try again.";
     public static final String DATE_MUST_BE_IN_FUTURE = "Date for the timer has to be in the future.";
     public static final String SCHEDULING_ERROR = "Error when scheduling the reminder. Please try again.";
@@ -19,5 +16,11 @@ public class RmndrMessageConstants {
     public static final String COULD_NOT_CANCEL_REMINDER = "Could not cancel reminder with that id.";
     public static final String SUCCESSFULLY_CLEARED_REMINDERS = "Successfully cleared all reminders.";
     public static final String COULD_NOT_CLEAR_REMINDERS = "Could not clear all reminders.";
+
+    public static final String HELP_MESSAGE = "Could not parse the message. " +
+        REMINDER_HELP + "\n" +
+        "To list all reminders:\n'!list'\n" +
+        CANCEL_REMINDER_HELP + "\n" +
+        "To clear all reminders:\n'!clear";
 
 }

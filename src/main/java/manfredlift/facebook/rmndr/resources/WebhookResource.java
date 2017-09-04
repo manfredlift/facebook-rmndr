@@ -67,8 +67,8 @@ public class WebhookResource {
     }
 
     @POST
-    public Response handleCallback(String requestBody,
-                                   @HeaderParam("X-Hub-Signature") String signature) throws IOException {
+    public Response handleCallback(@HeaderParam("X-Hub-Signature") String signature,
+                                   String requestBody) throws IOException {
 
         if (isValidRequest(requestBody, signature)) {
             Callback callback = objectMapper.readValue(requestBody, Callback.class);
@@ -160,7 +160,7 @@ public class WebhookResource {
         } else if (text.startsWith(CLEAR_COMMAND)) {
             handleClearCommand(user.getId());
         } else {
-            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
+            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.HELP_MESSAGE);
         }
     }
 
