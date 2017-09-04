@@ -24,8 +24,8 @@ public class FbClient {
         this.client = client;
     }
 
-    private void sendMessage(OutboundRequest outboundRequest) {
-        CompletableFuture.runAsync(() -> {
+    private CompletableFuture<Void> sendMessage(OutboundRequest outboundRequest) {
+        return CompletableFuture.runAsync(() -> {
             WebTarget target = client.target(RmndrConstants.MESSAGES_URI)
                 .queryParam(RmndrConstants.ACCESS_TOKEN, accessToken);
 
@@ -44,26 +44,26 @@ public class FbClient {
         });
     }
 
-    public void sendTextMessage(String recipientId, String text) {
+    public CompletableFuture<Void> sendTextMessage(String recipientId, String text) {
         OutboundRequest outboundRequest = OutboundRequest.builder()
             .recipient(new User(recipientId))
             .message(OutboundMessage.builder().text(text).build())
             .build();
 
-        sendMessage(outboundRequest);
+        return sendMessage(outboundRequest);
     }
 
-    public void  sendQuickReply(String recipientId, String text, List<QuickReply> quickReplies) {
+    public CompletableFuture<Void> sendQuickReply(String recipientId, String text, List<QuickReply> quickReplies) {
         OutboundRequest outboundRequest = OutboundRequest.builder()
             .recipient(new User(recipientId))
             .message(OutboundMessage.builder().text(text).quickReplies(quickReplies).build())
             .build();
 
-        sendMessage(outboundRequest);
+        return sendMessage(outboundRequest);
     }
 
-    public void sendErrorMessage(String recipientId, String errorMessage) {
-        sendTextMessage(recipientId, errorMessage);
+    public CompletableFuture<Void> sendErrorMessage(String recipientId, String errorMessage) {
+        return sendTextMessage(recipientId, errorMessage);
     }
 
     public CompletableFuture<UserTimezone> getUserTimezoneFuture(String userId) {

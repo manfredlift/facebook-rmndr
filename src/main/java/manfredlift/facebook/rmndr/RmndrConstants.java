@@ -8,7 +8,6 @@ public class RmndrConstants {
     public static final String FB_CLIENT = "fb_client";
     public static final String DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
     public static final String HUMAN_DATE_FORMAT = "EEE, dd/MMM/yyyy HH:mm:ss z";
-    public static final String LIST_ROW_FORMAT = "%16s | %16s | %30s";
     public static final String CANCEL = "cancel";
 
     //Wit api

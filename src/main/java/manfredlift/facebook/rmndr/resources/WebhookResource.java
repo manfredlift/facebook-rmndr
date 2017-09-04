@@ -11,6 +11,7 @@ import manfredlift.facebook.rmndr.api.*;
 import manfredlift.facebook.rmndr.client.FbClient;
 import manfredlift.facebook.rmndr.client.WitClient;
 import manfredlift.facebook.rmndr.util.DateHelper;
+import org.apache.commons.lang3.StringUtils;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
 
@@ -228,20 +229,16 @@ public class WebhookResource {
                 return;
             }
 
-            StringBuilder stringBuilder = new StringBuilder(String.format(LIST_ROW_FORMAT, "id", "text", "date"));
-
             for (JobKey jobKey : jobKeys) {
                 JobDataMap jobDataMap = scheduler.getJobDetail(jobKey).getJobDataMap();
 
                 String id = jobKey.getName();
-                String text = jobDataMap.getString("text");
                 String date = jobDataMap.getString("date");
+                String text = jobDataMap.getString("text");
+                text = text.length() > 20 ? StringUtils.left(text, 17) + "..." : text;
 
-                stringBuilder.append("\n");
-                stringBuilder.append(String.format(LIST_ROW_FORMAT, id, text, date));
+                fbClient.sendTextMessage(userId, String.format(RmndrMessageConstants.LIST_REMINDER_ENTRY, id, text, date));
             }
-
-            fbClient.sendTextMessage(userId, stringBuilder.toString());
         } catch (SchedulerException e) {
             log.error("Error when listing jobs. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
             fbClient.sendErrorMessage(userId, RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);

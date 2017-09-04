@@ -11,4 +11,5 @@ public class RmndrMessageConstants {
     public static final String TIMER_SCHEDULED_SUCCESSFULLY = "Reminder scheduled successfully.";
     public static final String USER_CONFIRMATION = "Set reminder '%s' for '%s'?";
     public static final String NO_REMINDERS_SCHEDULED = "No reminders scheduled.";
+    public static final String LIST_REMINDER_ENTRY = "id: %s\ntext: %s\ndate: %s";
 }
