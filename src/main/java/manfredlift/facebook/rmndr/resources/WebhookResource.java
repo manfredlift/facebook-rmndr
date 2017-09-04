@@ -1,5 +1,6 @@
 package manfredlift.facebook.rmndr.resources;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,8 @@ import manfredlift.facebook.rmndr.api.*;
 import manfredlift.facebook.rmndr.client.FbClient;
 import manfredlift.facebook.rmndr.client.WitClient;
 import manfredlift.facebook.rmndr.util.DateHelper;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.codec.digest.HmacUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -18,6 +21,8 @@ import org.quartz.impl.matchers.GroupMatcher;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -36,6 +41,7 @@ public class WebhookResource {
     private final WitClient witClient;
     private final Scheduler scheduler;
     private final Gson gson;
+    private final ObjectMapper objectMapper;
 
     public WebhookResource(RmndrConfiguration config, FbClient fbClient, WitClient witClient, Scheduler scheduler) {
         this.config = config;
@@ -43,6 +49,7 @@ public class WebhookResource {
         this.witClient = witClient;
         this.scheduler = scheduler;
         this.gson = new Gson();
+        this.objectMapper = new ObjectMapper();
     }
 
     @GET
@@ -59,15 +66,29 @@ public class WebhookResource {
         }
     }
 
-
     @POST
-    public Response handleCallback(Callback callback) {
-        CompletableFuture.runAsync(() ->
-            callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging)));
+    public Response handleCallback(String requestBody,
+                                   @HeaderParam("X-Hub-Signature") String signature) throws IOException {
 
-        // acknowledge with response 200 instantly
-        return Response.ok().build();
+        if (isValidRequest(requestBody, signature)) {
+            Callback callback = objectMapper.readValue(requestBody, Callback.class);
+            CompletableFuture.runAsync(() ->
+                callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging)));
+
+            // acknowledge with response 200 instantly
+            return Response.ok().build();
+        } else {
+            log.warn("Payload verification failed.");
+            return  Response.status(Response.Status.FORBIDDEN).build();
+        }
     }
+
+    private boolean isValidRequest(String requestBody, String signature) {
+        byte[] sha1 = HmacUtils.hmacSha1(config.getAppSecret().getBytes(StandardCharsets.UTF_8),
+            requestBody.getBytes(StandardCharsets.UTF_8));
+        return StringUtils.equals("sha1=" + Hex.encodeHexString(sha1), signature);
+    }
+
 
     private void processMessaging(Messaging messaging) {
         Message message = messaging.getMessage();
