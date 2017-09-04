@@ -74,7 +74,8 @@ public class FbClient {
                 .queryParam(RmndrConstants.ACCESS_TOKEN, accessToken);
 
             UserTimezone userTimezone = target.request().get(UserTimezone.class);
-            log.info("User timezone received from facebook: {}", userTimezone.getTimezone());
+            log.info("User timezone {} received from facebook for user {}",
+                userTimezone.getOffsetHours(), userTimezone.getOffsetHours());
             return userTimezone;
         }).exceptionally(e -> {
             log.error("Unexpected error when querying user timezone from Facebook. Error: '{}:{}'",
