@@ -21,6 +21,6 @@ public class RmndrMessageConstants {
         REMINDER_HELP + "\n" +
         "To list all reminders:\n'!list'\n" +
         CANCEL_REMINDER_HELP + "\n" +
-        "To clear all reminders:\n'!clear";
+        "To clear all reminders:\n'!clear'";
 
 }
