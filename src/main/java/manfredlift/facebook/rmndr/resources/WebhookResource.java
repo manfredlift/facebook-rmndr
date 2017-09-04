@@ -200,14 +200,14 @@ public class WebhookResource {
 
     private void scheduleReminder(String userId, String text, String dateString, Date date) {
         JobDetail job = newJob(ReminderJob.class)
-            .withIdentity(UUID.randomUUID().toString(), userId)
+            .withIdentity(UUID.randomUUID().toString().replace("-", ""), userId)
             .usingJobData("recipient", userId)
             .usingJobData("text", text)
             .usingJobData("date", dateString)
             .build();
 
         Trigger trigger = newTrigger()
-            .withIdentity(UUID.randomUUID().toString(), userId)
+            .withIdentity(UUID.randomUUID().toString().replace("-", ""), userId)
             .startAt(date)
             .build();
 
