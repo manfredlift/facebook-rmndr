@@ -21,6 +21,7 @@ import javax.ws.rs.core.Response;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 import static manfredlift.facebook.rmndr.RmndrConstants.*;
 import static org.quartz.JobBuilder.newJob;
@@ -61,7 +62,10 @@ public class WebhookResource {
 
     @POST
     public Response handleCallback(Callback callback) {
-        callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging));
+        CompletableFuture.runAsync(() ->
+            callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging)));
+
+        // acknowledge with response 200 instantly
         return Response.ok().build();
     }
 
@@ -79,6 +83,31 @@ public class WebhookResource {
         } else {
             processMessage(messaging.getSender(), message, messaging.getTimestamp());
         }
+    }
+
+    private void processQuickReply(User user, QuickReply quickReply) {
+        if (quickReply.getPayload() == null || quickReply.getPayload().length() == 0) {
+            log.info("User cancelled in quick reply");
+            return;
+        }
+
+        if (quickReply.getPayload().equals(RmndrConstants.CANCEL)) {
+            log.info("User cancelled timer in confirmation");
+            return;
+        }
+
+        String payload = quickReply.getPayload();
+        ReminderPayload reminderPayload = gson.fromJson(payload, ReminderPayload.class);
+
+        Date date = Date.from(ZonedDateTime.parse(reminderPayload.getDate()).toInstant());
+
+        if (date.before(new Date())) {
+            log.info("Tried to set a reminder in the past");
+            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.DATE_MUST_BE_IN_FUTURE);
+            return;
+        }
+
+        scheduleReminder(user.getId(), reminderPayload.getText(), reminderPayload.getDate(), date);
     }
 
     private void processMessage(User user, Message message, long timestamp) {
@@ -160,74 +189,6 @@ public class WebhookResource {
             });
     }
 
-    private void createConfirmationQuickReply(User user, NlpEntity dateTimeEntity, String reminderText) {
-        ZonedDateTime zonedDate = ZonedDateTime.parse(dateTimeEntity.getValue());
-        String humanDateString = zonedDate.format(DateTimeFormatter.ofPattern(RmndrConstants.HUMAN_DATE_FORMAT));
-
-        String confirmationText = String.format(RmndrMessageConstants.USER_CONFIRMATION,
-            reminderText, humanDateString);
-
-        ReminderPayload reminderPayload = new ReminderPayload();
-        reminderPayload.setText(reminderText);
-        reminderPayload.setDate(dateTimeEntity.getValue());
-        String payload = gson.toJson(reminderPayload);
-
-        QuickReply yesQuickReply = QuickReply.builder().title("Yes").payload(payload).build();
-        QuickReply cancelQuickReply = QuickReply.builder().title("Cancel").payload(RmndrConstants.CANCEL).build();
-
-        fbClient.sendQuickReply(user.getId(), confirmationText, ImmutableList.of(yesQuickReply, cancelQuickReply));
-        log.info("Quick reply sent");
-    }
-
-
-    private void processQuickReply(User user, QuickReply quickReply) {
-        if (quickReply.getPayload() == null || quickReply.getPayload().length() == 0) {
-            log.info("User cancelled in quick reply");
-            return;
-        }
-
-        if (quickReply.getPayload().equals(RmndrConstants.CANCEL)) {
-            log.info("User cancelled timer in confirmation");
-            return;
-        }
-
-        String payload = quickReply.getPayload();
-        ReminderPayload reminderPayload = gson.fromJson(payload, ReminderPayload.class);
-
-        Date date = Date.from(ZonedDateTime.parse(reminderPayload.getDate()).toInstant());
-
-        if (date.before(new Date())) {
-            log.info("Tried to set a reminder in the past");
-            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.DATE_MUST_BE_IN_FUTURE);
-            return;
-        }
-
-        scheduleReminder(user.getId(), reminderPayload.getText(), reminderPayload.getDate(), date);
-    }
-
-    private void scheduleReminder(String userId, String text, String dateString, Date date) {
-        JobDetail job = newJob(ReminderJob.class)
-            .withIdentity(UUID.randomUUID().toString().replace("-", ""), userId)
-            .usingJobData("recipient", userId)
-            .usingJobData("text", text)
-            .usingJobData("date", dateString)
-            .build();
-
-        Trigger trigger = newTrigger()
-            .withIdentity(UUID.randomUUID().toString().replace("-", ""), userId)
-            .startAt(date)
-            .build();
-
-        try {
-            scheduler.scheduleJob(job, trigger);
-            fbClient.sendTextMessage(userId, RmndrMessageConstants.TIMER_SCHEDULED_SUCCESSFULLY);
-            log.info("Reminder scheduled");
-        } catch (SchedulerException e) {
-            log.error("Error when scheduling a job. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
-            fbClient.sendErrorMessage(userId, RmndrMessageConstants.SCHEDULING_ERROR);
-        }
-    }
-
     private void handleListCommand(String userId) {
         try {
             Set<JobKey> jobKeys = scheduler.getJobKeys(GroupMatcher.jobGroupEquals(userId));
@@ -280,6 +241,48 @@ public class WebhookResource {
         } catch (SchedulerException e) {
             log.error("Error when clearing all jobs. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
             fbClient.sendErrorMessage(userId, RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
+        }
+    }
+
+    private void createConfirmationQuickReply(User user, NlpEntity dateTimeEntity, String reminderText) {
+        ZonedDateTime zonedDate = ZonedDateTime.parse(dateTimeEntity.getValue());
+        String humanDateString = zonedDate.format(DateTimeFormatter.ofPattern(RmndrConstants.HUMAN_DATE_FORMAT));
+
+        String confirmationText = String.format(RmndrMessageConstants.USER_CONFIRMATION,
+            reminderText, humanDateString);
+
+        ReminderPayload reminderPayload = new ReminderPayload();
+        reminderPayload.setText(reminderText);
+        reminderPayload.setDate(dateTimeEntity.getValue());
+        String payload = gson.toJson(reminderPayload);
+
+        QuickReply yesQuickReply = QuickReply.builder().title("Yes").payload(payload).build();
+        QuickReply cancelQuickReply = QuickReply.builder().title("Cancel").payload(RmndrConstants.CANCEL).build();
+
+        fbClient.sendQuickReply(user.getId(), confirmationText, ImmutableList.of(yesQuickReply, cancelQuickReply));
+        log.info("Quick reply sent");
+    }
+
+    private void scheduleReminder(String userId, String text, String dateString, Date date) {
+        JobDetail job = newJob(ReminderJob.class)
+            .withIdentity(UUID.randomUUID().toString().replace("-", ""), userId)
+            .usingJobData("recipient", userId)
+            .usingJobData("text", text)
+            .usingJobData("date", dateString)
+            .build();
+
+        Trigger trigger = newTrigger()
+            .withIdentity(UUID.randomUUID().toString().replace("-", ""), userId)
+            .startAt(date)
+            .build();
+
+        try {
+            scheduler.scheduleJob(job, trigger);
+            fbClient.sendTextMessage(userId, RmndrMessageConstants.TIMER_SCHEDULED_SUCCESSFULLY);
+            log.info("Reminder scheduled");
+        } catch (SchedulerException e) {
+            log.error("Error when scheduling a job. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
+            fbClient.sendErrorMessage(userId, RmndrMessageConstants.SCHEDULING_ERROR);
         }
     }
 }
