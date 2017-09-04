@@ -94,18 +94,28 @@ public class WebhookResource {
                 handleReminderCommand(user, text, timestamp);
                 return;
             }
+
         } else if (text.startsWith(LIST_COMMAND)) {
             handleListCommand(user.getId());
             return;
+
         } else if (text.startsWith(CANCEL_COMMAND)) {
+            String[] splitStrings = text.split("\\s+"); // split string on whitespace
+            if (splitStrings.length == 2) {
+                handleCancelCommand(user.getId(), splitStrings[1]);
+            } else {
+                fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.CANCEL_REMINDER_HELP);
+            }
             return;
+
         } else if (text.startsWith(CLEAR_COMMAND)) {
             return;
+
+        } else {
+            fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
+
         }
-
-        fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_MESSAGE);
     }
-
 
     private void handleReminderCommand(User user, String text, long timestamp) {
         String dateText = text.substring(RmndrConstants.REMINDER_COMMAND.length(), text.indexOf(';')).trim();
@@ -241,6 +251,21 @@ public class WebhookResource {
             }
         } catch (SchedulerException e) {
             log.error("Error when listing jobs. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
+            fbClient.sendErrorMessage(userId, RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
+        }
+    }
+
+    private void handleCancelCommand(String userId, String reminderId) {
+        try {
+            JobKey jobKey = new JobKey(reminderId, userId);
+            if (scheduler.deleteJob(jobKey)) {
+                fbClient.sendTextMessage(userId, RmndrMessageConstants.SUCCESSFULLY_CANCELLED_REMINDER);
+            } else {
+                fbClient.sendErrorMessage(userId, RmndrMessageConstants.COULD_NOT_CANCEL_REMINDER);
+            }
+
+        } catch (SchedulerException e) {
+            log.error("Error when cancelling a job. Error: {}:{}", e.getClass().getCanonicalName(), e.getMessage());
             fbClient.sendErrorMessage(userId, RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
         }
     }

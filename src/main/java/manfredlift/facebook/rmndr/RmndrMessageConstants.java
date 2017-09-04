@@ -12,4 +12,8 @@ public class RmndrMessageConstants {
     public static final String USER_CONFIRMATION = "Set reminder '%s' for '%s'?";
     public static final String NO_REMINDERS_SCHEDULED = "No reminders scheduled.";
     public static final String LIST_REMINDER_ENTRY = "id: %s\ntext: %s\ndate: %s";
+    public static final String CANCEL_REMINDER_HELP = "To cancel a reminder format your message like:\n" +
+        "'!cancel <reminder_id>'";
+    public static final String SUCCESSFULLY_CANCELLED_REMINDER = "Successfully cancelled the reminder.";
+    public static final String COULD_NOT_CANCEL_REMINDER = "Could not cancel reminder with that id.";
 }
