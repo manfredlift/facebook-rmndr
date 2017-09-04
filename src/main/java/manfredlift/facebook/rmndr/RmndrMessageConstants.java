@@ -23,4 +23,11 @@ public class RmndrMessageConstants {
         CANCEL_REMINDER_HELP + "\n\n" +
         "To clear all reminders:\n'!clear'";
 
+    public static final String GET_STARTED = "Welcome to the Rmndr bot!\n\n" +
+        "To schedule a reminder:\n'!reminder <time>; <text>'\n\n" +
+        "E.g '!reminder at 5pm; leave work!' or '!reminder in 15 mins; get coffee'\n\n" +
+        "To list all reminders:\n'!list'\n\n" +
+        "To cancel a reminder:\n'!cancel <reminder_id>'\n\n" +
+        "To clear all reminders:\n'!clear'";
+
 }

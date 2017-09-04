@@ -91,6 +91,11 @@ public class WebhookResource {
 
 
     private void processMessaging(Messaging messaging) {
+        if (messaging.getPostback() != null) {
+            processPostback(messaging.getSender(), messaging.getPostback());
+            return;
+        }
+
         Message message = messaging.getMessage();
         
         if (message == null) {
@@ -131,11 +136,18 @@ public class WebhookResource {
         scheduleReminder(user.getId(), reminderPayload.getText(), reminderPayload.getDate(), date);
     }
 
+    private void processPostback(User user, Postback postback) {
+        if (RmndrConstants.GET_STARTED.equals(postback.getPayload())) {
+            log.info("Get started postback received");
+            fbClient.sendTextMessage(user.getId(), RmndrMessageConstants.GET_STARTED);
+        }
+    }
+
     private void processMessage(User user, Message message, long timestamp) {
         String text = message.getText();
 
         if (text == null) {
-            log.error("Unexpected: Text is null in Message: {}", message.toString());
+            log.info("Unexpected: Text is null in Message: {}", message.toString());
             return;
         }
 

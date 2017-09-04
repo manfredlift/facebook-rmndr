@@ -5,10 +5,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Messaging {
-    private User sender;
-    private User recipient;
-    private long timestamp;
-    private Message message;
-    private Postback postback;
+public class Postback {
+    private String title;
+    private String payload;
 }

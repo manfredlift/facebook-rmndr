@@ -9,6 +9,7 @@ public class RmndrConstants {
     public static final String DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
     public static final String HUMAN_DATE_FORMAT = "EEE, dd/MMM/yyyy HH:mm:ss z";
     public static final String CANCEL = "cancel";
+    public static final String GET_STARTED = "get_started";
 
     //Wit api
     public static final String WIT_URI = "https://api.wit.ai/message?v=20170901";
