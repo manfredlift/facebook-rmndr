@@ -12,8 +12,7 @@ import manfredlift.facebook.rmndr.api.*;
 import manfredlift.facebook.rmndr.client.FbClient;
 import manfredlift.facebook.rmndr.client.WitClient;
 import manfredlift.facebook.rmndr.util.DateHelper;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.codec.digest.HmacUtils;
+import manfredlift.facebook.rmndr.util.SignatureVerifier;
 import org.apache.commons.lang3.StringUtils;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -22,7 +21,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -70,7 +68,7 @@ public class WebhookResource {
     public Response handleCallback(@HeaderParam("X-Hub-Signature") String signature,
                                    String requestBody) throws IOException {
 
-        if (isValidRequest(requestBody, signature)) {
+        if (SignatureVerifier.isValid(config.getAppSecret(), signature, requestBody)) {
             Callback callback = objectMapper.readValue(requestBody, Callback.class);
             CompletableFuture.runAsync(() ->
                 callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging)));
@@ -83,11 +81,7 @@ public class WebhookResource {
         }
     }
 
-    private boolean isValidRequest(String requestBody, String signature) {
-        byte[] sha1 = HmacUtils.hmacSha1(config.getAppSecret().getBytes(StandardCharsets.UTF_8),
-            requestBody.getBytes(StandardCharsets.UTF_8));
-        return StringUtils.equals("sha1=" + Hex.encodeHexString(sha1), signature);
-    }
+
 
 
     private void processMessaging(Messaging messaging) {
