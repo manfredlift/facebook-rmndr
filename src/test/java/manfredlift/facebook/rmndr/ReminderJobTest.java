@@ -24,7 +24,8 @@ public class ReminderJobTest {
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private JobExecutionContext jobExecutionContext;
 
-    @Mock private FbClient fbClient;
+    @Mock
+    private FbClient fbClient;
 
     @Before
     public void setup() throws SchedulerException {
