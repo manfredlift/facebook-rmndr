@@ -77,11 +77,6 @@ public class FbClient {
             log.info("User timezone {} received from facebook for user {}",
                 userTimezone.getOffsetHours(), userTimezone.getOffsetHours());
             return userTimezone;
-        }).exceptionally(e -> {
-            log.error("Unexpected error when querying user timezone from Facebook. Error: '{}:{}'",
-                e.getClass().getCanonicalName(), e.getMessage());
-            return null;
         });
-
     }
 }

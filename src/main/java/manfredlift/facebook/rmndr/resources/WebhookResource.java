@@ -81,9 +81,6 @@ public class WebhookResource {
         }
     }
 
-
-
-
     private void processMessaging(Messaging messaging) {
         if (messaging.getPostback() != null) {
             processPostback(messaging.getSender(), messaging.getPostback());
