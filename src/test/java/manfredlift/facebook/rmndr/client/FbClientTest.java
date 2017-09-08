@@ -19,13 +19,13 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 @RunWith(MockitoJUnitRunner.class)
@@ -115,13 +115,13 @@ public class FbClientTest {
 
         when(target.request().get(UserTimezone.class)).thenReturn(new UserTimezone(3));
 
-        CompletableFuture<UserTimezone> userTimezoneFuture = fbClient.getUserTimezoneFuture(userId);
+        UserTimezone userTimezone = fbClient.getUserTimezoneFuture(userId).get();
 
         verify(client.target(RmndrConstants.BASE_URI).path(userId).queryParam(RmndrConstants.FIELDS, "timezone"))
             .queryParam(RmndrConstants.ACCESS_TOKEN, "some_access_token");
         verify(target.request()).get(UserTimezone.class);
 
-        assertEquals(3, userTimezoneFuture.get().getOffsetHours());
+        assertEquals(3, userTimezone.getOffsetHours());
     }
 
 
