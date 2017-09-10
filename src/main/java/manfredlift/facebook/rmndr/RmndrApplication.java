@@ -13,8 +13,11 @@ import manfredlift.facebook.rmndr.properties.QuartzSchedulerFactory;
 import manfredlift.facebook.rmndr.resources.HealthCheckResource;
 import manfredlift.facebook.rmndr.resources.WebhookResource;
 import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 
 import javax.ws.rs.client.Client;
+
+import static jersey.repackaged.com.google.common.base.Preconditions.checkNotNull;
 
 @Slf4j
 public class RmndrApplication extends Application<RmndrConfiguration> {
@@ -25,22 +28,14 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
 
     @Override
     public void run(RmndrConfiguration configuration, Environment environment) throws Exception {
-        final Client client = new JerseyClientBuilder(environment).using(configuration.getJerseyClientConfiguration())
-            .build(getName());
 
-        final FbClient fbClient = new FbClient(configuration, client);
-        final WitClient witClient = new WitClient(configuration, client);
-
-        final Scheduler scheduler = QuartzSchedulerFactory.create(configuration);
-
-        scheduler.getContext().put(RmndrConstants.FB_CLIENT, fbClient);
-        scheduler.getContext().put(RmndrConstants.ACCESS_TOKEN, configuration.getPageAccessToken());
-        scheduler.start();
+        registerClients(configuration, environment);
+        registerScheduler(configuration, environment);
+        registerCallbackHandler(environment);
 
         environment.jersey().register(new HealthCheckResource());
-        environment.jersey().register(new WebhookResource(configuration, fbClient, witClient, scheduler));
+        environment.jersey().register(new WebhookResource(configuration, environment.jersey()));
     }
-
 
     @Override
     public void initialize(Bootstrap<RmndrConfiguration> bootstrap) {
@@ -50,5 +45,32 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
                 new EnvironmentVariableSubstitutor(false)
             )
         );
+    }
+
+    private void registerClients(RmndrConfiguration configuration, Environment environment) {
+        final Client client = new JerseyClientBuilder(environment).using(configuration.getJerseyClientConfiguration())
+            .build(getName());
+
+        final FbClient fbClient = new FbClient(configuration, client);
+        final WitClient witClient = new WitClient(configuration, client);
+
+        environment.jersey().property(RmndrConstants.FB_CLIENT, fbClient);
+        environment.jersey().property(RmndrConstants.WIT_CLIENT, witClient);
+    }
+
+    private void registerScheduler(RmndrConfiguration configuration, Environment environment) throws SchedulerException {
+        final Scheduler scheduler = QuartzSchedulerFactory.create(configuration);
+        final FbClient fbClient = checkNotNull(environment.jersey().getProperty(RmndrConstants.FB_CLIENT));
+
+        scheduler.getContext().put(RmndrConstants.FB_CLIENT, fbClient);
+        scheduler.getContext().put(RmndrConstants.ACCESS_TOKEN, configuration.getPageAccessToken());
+        scheduler.start();
+
+        environment.jersey().property(RmndrConstants.QUARTZ_SCHEDULER, scheduler);
+    }
+
+    private void registerCallbackHandler(Environment environment) {
+        final CallbackHandler callbackHandler = new CallbackHandler(environment.jersey());
+        environment.jersey().property(RmndrConstants.CALLBACK_HANDLER, callbackHandler);
     }
 }
