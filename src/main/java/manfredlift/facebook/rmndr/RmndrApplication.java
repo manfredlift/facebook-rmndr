@@ -9,14 +9,12 @@ import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
 import manfredlift.facebook.rmndr.client.FbClient;
 import manfredlift.facebook.rmndr.client.WitClient;
-import manfredlift.facebook.rmndr.properties.QuartzPropertiesFactory;
+import manfredlift.facebook.rmndr.properties.QuartzSchedulerFactory;
 import manfredlift.facebook.rmndr.resources.HealthCheckResource;
 import manfredlift.facebook.rmndr.resources.WebhookResource;
 import org.quartz.Scheduler;
-import org.quartz.impl.StdSchedulerFactory;
 
 import javax.ws.rs.client.Client;
-import java.util.Properties;
 
 @Slf4j
 public class RmndrApplication extends Application<RmndrConfiguration> {
@@ -33,9 +31,7 @@ public class RmndrApplication extends Application<RmndrConfiguration> {
         final FbClient fbClient = new FbClient(configuration, client);
         final WitClient witClient = new WitClient(configuration, client);
 
-        final Properties quartzProperties = QuartzPropertiesFactory.create();
-        final StdSchedulerFactory schedulerFactory = new StdSchedulerFactory(quartzProperties);
-        final Scheduler scheduler = schedulerFactory.getScheduler();
+        final Scheduler scheduler = QuartzSchedulerFactory.create(configuration);
 
         scheduler.getContext().put(RmndrConstants.FB_CLIENT, fbClient);
         scheduler.getContext().put(RmndrConstants.ACCESS_TOKEN, configuration.getPageAccessToken());

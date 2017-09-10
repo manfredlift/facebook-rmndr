@@ -1,0 +1,22 @@
+# read secret tokens from environment variables
+verifyToken: test_verify_token
+pageAccessToken: test_page_access_token
+appSecret: test_app_secret
+witToken: test_wit_token
+
+testing: true
+
+server:
+    type: default
+    applicationConnectors:
+        -   type: http
+            port: 8089
+
+jerseyClient:
+  minThreads: 1
+  maxThreads: 128
+  workQueueSize: 8
+  gzipEnabled: true
+  gzipEnabledForRequests: true
+  chunkedEncodingEnabled: true
+  timeout: 3s

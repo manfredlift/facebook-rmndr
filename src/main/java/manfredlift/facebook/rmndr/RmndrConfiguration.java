@@ -14,6 +14,8 @@ public class RmndrConfiguration extends Configuration {
 
     private String witToken;
 
+    private boolean testing = false;
+
     private JerseyClientConfiguration jerseyClient;
 
     public JerseyClientConfiguration getJerseyClientConfiguration() {
