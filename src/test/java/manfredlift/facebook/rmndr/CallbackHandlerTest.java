@@ -331,12 +331,49 @@ public class CallbackHandlerTest {
         verifyNoMoreInteractions(fbClient, witClient, scheduler);
     }
 
+    @Test
+    public void processMessage_cancelCommand_success() throws Exception {
+        Callback callback = createProcessMessagePayload("!cancel random_id");
+
+        when(scheduler.deleteJob(new JobKey("random_id", "some_id"))).thenReturn(true);
+
+        callbackHandler.handleCallbackAsync(callback).get();
+
+        verify(scheduler).deleteJob(new JobKey("random_id", "some_id"));
+        verify(fbClient).sendTextMessage("some_id", RmndrMessageConstants.SUCCESSFULLY_CANCELLED_REMINDER);
+        verifyNoMoreInteractions(fbClient, witClient, scheduler);
+    }
+
+    @Test
+    public void processMessage_cancelCommand_notDeleted() throws Exception {
+        Callback callback = createProcessMessagePayload("!cancel wrong_id");
+
+        when(scheduler.deleteJob(new JobKey("wrong_id", "some_id"))).thenReturn(false);
+
+        callbackHandler.handleCallbackAsync(callback).get();
+
+        verify(scheduler).deleteJob(new JobKey("wrong_id", "some_id"));
+        verify(fbClient).sendErrorMessage("some_id", RmndrMessageConstants.COULD_NOT_CANCEL_REMINDER);
+        verifyNoMoreInteractions(fbClient, witClient, scheduler);
+    }
+
+    @Test
+    public void processMessage_cancelCommand_noJobIdGiven() throws Exception {
+        Callback callback = createProcessMessagePayload("!cancel");
+
+        callbackHandler.handleCallbackAsync(callback).get();
+
+        verify(fbClient).sendErrorMessage("some_id", RmndrMessageConstants.CANCEL_REMINDER_HELP);
+        verifyNoMoreInteractions(fbClient, witClient, scheduler);
+    }
+
     private Callback createProcessMessagePayload(String text) {
         Message message = Message.builder().mid("some_mid").seq(1).text(text).build();
         Messaging messaging = Messaging.builder().sender(new User("some_id")).message(message).timestamp(1503652953801L).build();
         List<Messaging> messagings = Collections.singletonList(messaging);
         Entry entry = Entry.builder().id(123).time(1503652953801L).messaging(messagings).build();
         List<Entry> entries = Collections.singletonList(entry);
+
         return Callback.builder().object("page").entry(entries).build();
     }
 }
