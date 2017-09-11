@@ -87,6 +87,11 @@ public class CallbackHandler {
         String payload = quickReply.getPayload();
         ReminderPayload reminderPayload = gson.fromJson(payload, ReminderPayload.class);
 
+        if (reminderPayload.getDate() == null || reminderPayload.getText() == null) {
+            log.error("Invalid QuickReply payload: {}", payload);
+            return;
+        }
+
         Date date = Date.from(ZonedDateTime.parse(reminderPayload.getDate()).toInstant());
 
         if (date.before(new Date())) {
@@ -143,21 +148,9 @@ public class CallbackHandler {
         String reminderText = text.substring(text.indexOf(';') + 1).trim();
 
         fbClient.getUserTimezoneFuture(user.getId())
-            .exceptionally(th -> {
-                log.error("Error when getting timezone from Facebook. Error: {}:{}", th.getClass().getCanonicalName(),
-                    th.getClass().getCanonicalName(), th.getMessage());
-                fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
-                return null;
-            })
             .thenCompose(userTimezone -> {
                 ReferenceTime refTime = DateHelper.referenceTimeFromMillis(timestamp, userTimezone.getOffsetHours());
                 return witClient.getResponseFuture(dateText, refTime);
-            })
-            .exceptionally(th -> {
-                log.error("Error when querying wit.ai. Error: {}:{}", th.getClass().getCanonicalName(),
-                    th.getClass().getCanonicalName(), th.getMessage());
-                fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
-                return null;
             })
             .thenAccept(witResponse -> {
                 if (witResponse.getEntities() == null) {
@@ -181,6 +174,12 @@ public class CallbackHandler {
                     log.info("Datetime entity not present datetime entity list. Response: {}", witResponse);
                     fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNPARSABLE_DATE);
                 }
+            })
+            .exceptionally(th -> {
+                log.error("Error when getting timezone from Facebook or Wit AI response. Error: {}:{}:{}",
+                    th.getClass().getCanonicalName(), th.getClass().getCanonicalName(), th.getMessage());
+                fbClient.sendErrorMessage(user.getId(), RmndrMessageConstants.UNEXPECTED_ERROR_PLEASE_TRY_AGAIN);
+                return null;
             });
     }
 
