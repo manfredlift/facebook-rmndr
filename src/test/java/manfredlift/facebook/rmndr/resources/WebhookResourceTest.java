@@ -1,19 +1,16 @@
 package manfredlift.facebook.rmndr.resources;
 
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import io.dropwizard.testing.ResourceHelpers;
 import io.dropwizard.testing.junit.DropwizardAppRule;
 import manfredlift.facebook.rmndr.RmndrApplication;
 import manfredlift.facebook.rmndr.RmndrConfiguration;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
 
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -22,20 +19,14 @@ public class WebhookResourceTest {
     public static final DropwizardAppRule<RmndrConfiguration> app =
         new DropwizardAppRule<>(RmndrApplication.class,
             ResourceHelpers.resourceFilePath("test-config.yml"));
-    @Rule
-    public WireMockRule wireMockRule = new WireMockRule(wireMockConfig().dynamicPort().dynamicHttpsPort());
-
 
     private Client client;
     private String hostUrl;
-    private String wireMockUrl;
-
 
     @Before
     public void setup() {
         client = app.client();
         hostUrl = "http://localhost:8089/webhook";
-        wireMockUrl = "http://localhost:" + wireMockRule.port() + "/webhook";
     }
 
     @Test

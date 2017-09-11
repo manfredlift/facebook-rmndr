@@ -1,6 +1,5 @@
 package manfredlift.facebook.rmndr;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import io.dropwizard.jersey.setup.JerseyEnvironment;
@@ -29,22 +28,31 @@ public class CallbackHandler {
     private final WitClient witClient;
     private final Scheduler scheduler;
     private final Gson gson;
-    private final ObjectMapper objectMapper;
 
     public CallbackHandler(JerseyEnvironment jersey) {
         this.fbClient = checkNotNull(jersey.getProperty(RmndrConstants.FB_CLIENT));
         this.witClient = checkNotNull(jersey.getProperty(RmndrConstants.WIT_CLIENT));
         this.scheduler = checkNotNull(jersey.getProperty(RmndrConstants.QUARTZ_SCHEDULER));
         this.gson = new Gson();
-        this.objectMapper = new ObjectMapper();
     }
 
     public CompletableFuture<Void> handleCallbackAsync(Callback callback) {
         return CompletableFuture.runAsync(() ->
-            callback.getEntry().forEach(entry -> entry.getMessaging().forEach(this::processMessaging)));
+            Optional.ofNullable(callback.getEntry())
+                .orElseGet(Collections::emptyList)
+                .stream()
+                .map(Entry::getMessaging)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .forEach(this::processMessaging));
     }
 
     private void processMessaging(Messaging messaging) {
+        if (messaging.getSender() == null || messaging.getSender().getId() == null) {
+            log.error("Unexpected: Sender id for the message is missing.");
+            return;
+        }
+
         if (messaging.getPostback() != null) {
             processPostback(messaging.getSender(), messaging.getPostback());
             return;
