@@ -9,6 +9,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.ws.rs.client.Client;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import static org.hamcrest.core.IsEqual.equalTo;
@@ -50,6 +52,38 @@ public class WebhookResourceTest {
             .queryParam("hub.challenge", "test_challenge")
             .request()
             .get();
+
+        assertThat(response.getStatus(), equalTo(Response.Status.FORBIDDEN.getStatusCode()));
+    }
+
+    @Test
+    public void callbackTest_withValidSignature() {
+        Entity<String> entity = Entity.entity("{\"äö\":\"[[saok$@*@#*\"}", MediaType.APPLICATION_JSON);
+        Response response = client.target(hostUrl)
+            .request()
+            .header("X-Hub-Signature", "sha1=004e377c0db93160cf7b58f3fa2023e74202b8f7")
+            .post(entity);
+
+        assertThat(response.getStatus(), equalTo(Response.Status.OK.getStatusCode()));
+    }
+
+    @Test
+    public void callbackTest_withInvalidSignature() {
+        Entity<String> entity = Entity.entity("dummy body", MediaType.APPLICATION_JSON);
+        Response response = client.target(hostUrl)
+            .request()
+            .header("X-Hub-Signature", "sha1=004e377c0db93160cf7b58f3fa2023e74202b8f7")
+            .post(entity);
+
+        assertThat(response.getStatus(), equalTo(Response.Status.FORBIDDEN.getStatusCode()));
+    }
+
+    @Test
+    public void callbackTest_withNoSignature() {
+        Entity<String> entity = Entity.entity("dummy body", MediaType.APPLICATION_JSON);
+        Response response = client.target(hostUrl)
+            .request()
+            .post(entity);
 
         assertThat(response.getStatus(), equalTo(Response.Status.FORBIDDEN.getStatusCode()));
     }

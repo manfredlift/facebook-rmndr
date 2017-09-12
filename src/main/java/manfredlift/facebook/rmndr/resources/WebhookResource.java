@@ -52,7 +52,8 @@ public class WebhookResource {
             Callback callback = objectMapper.readValue(requestBody, Callback.class);
             callbackHandler.handleCallbackAsync(callback);
 
-            // acknowledge with response 200 instantly
+            /* Always acknowledge with response 200 instantly, if signature is valid. (even with invalid request body)
+             * Otherwise, Facebook would keep retrying the same request. */
             return Response.ok().build();
         } else {
             log.warn("Payload verification failed.");
