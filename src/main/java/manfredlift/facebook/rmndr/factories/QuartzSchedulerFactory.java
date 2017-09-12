@@ -1,4 +1,4 @@
-package manfredlift.facebook.rmndr.properties;
+package manfredlift.facebook.rmndr.factories;
 
 import lombok.extern.slf4j.Slf4j;
 import manfredlift.facebook.rmndr.RmndrConfiguration;
@@ -22,7 +22,7 @@ public class QuartzSchedulerFactory {
                 InputStream inputStream = classloader.getResourceAsStream("quartz.properties");
                 properties.load(inputStream);
             } catch (IOException e) {
-                log.error("Could not load Quartz properties.");
+                log.error("Could not load Quartz factories.");
                 return null;
             }
 

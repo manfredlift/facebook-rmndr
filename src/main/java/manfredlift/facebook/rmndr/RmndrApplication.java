@@ -9,7 +9,7 @@ import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
 import manfredlift.facebook.rmndr.client.FbClient;
 import manfredlift.facebook.rmndr.client.WitClient;
-import manfredlift.facebook.rmndr.properties.QuartzSchedulerFactory;
+import manfredlift.facebook.rmndr.factories.QuartzSchedulerFactory;
 import manfredlift.facebook.rmndr.resources.HealthCheckResource;
 import manfredlift.facebook.rmndr.resources.WebhookResource;
 import org.quartz.Scheduler;

@@ -16,6 +16,6 @@ public class DateHelperTest {
     @Test
     public void testHelper_successMinus7() {
         ReferenceTime referenceTime = DateHelper.referenceTimeFromMillis(1505211935893L, -7);
-        assertThat(referenceTime.getReferenceTime(), is(equalTo("2017-09-12T03:25:35.893+01:00")));
+        assertThat(referenceTime.getReferenceTime(), is(equalTo("2017-09-12T03:25:35.893-07:00")));
     }
 }
