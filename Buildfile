@@ -1,1 +1,1 @@
-build: mvn clean install
+build: mvn clean install -Dmaven.test.skip
