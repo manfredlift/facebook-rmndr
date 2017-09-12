@@ -1,6 +1,7 @@
 package manfredlift.facebook.rmndr;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import io.dropwizard.jersey.setup.JerseyEnvironment;
 import manfredlift.facebook.rmndr.api.*;
 import manfredlift.facebook.rmndr.client.FbClient;
@@ -364,6 +365,24 @@ public class CallbackHandlerTest {
         callbackHandler.handleCallbackAsync(callback).get();
 
         verify(fbClient).sendErrorMessage("some_id", RmndrMessageConstants.CANCEL_REMINDER_HELP);
+        verifyNoMoreInteractions(fbClient, witClient, scheduler);
+    }
+
+    @Test
+    public void processMessage_clearCommand_oneReminder() throws Exception {
+        Callback callback = createProcessMessagePayload("!clear");
+
+        JobKey jobKey = new JobKey("random_id", "some_id");
+
+        when(scheduler.getJobKeys(GroupMatcher.jobGroupEquals("some_id")))
+            .thenReturn(Collections.singleton(jobKey));
+        when(scheduler.deleteJobs(ImmutableList.of(jobKey))).thenReturn(true);
+
+        callbackHandler.handleCallbackAsync(callback).get();
+
+        verify(scheduler).getJobKeys(GroupMatcher.jobGroupEquals("some_id"));
+        verify(scheduler).deleteJobs(ImmutableList.of(jobKey));
+        verify(fbClient).sendTextMessage("some_id", RmndrMessageConstants.SUCCESSFULLY_CLEARED_REMINDERS);
         verifyNoMoreInteractions(fbClient, witClient, scheduler);
     }
 
